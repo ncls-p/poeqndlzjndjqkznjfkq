@@ -50,6 +50,9 @@ async def create_client():
 @router.post("/chat/completions")
 @router.post("/v1/chat/completions")
 async def chat_completions(request: Request, completion_request: ChatCompletionRequest):
+    print(request.headers)
+    print(request.query_params)
+    print(request.body)
     res = ""
     async for chunk in client.send_message(
         bot=completion_request.model, message=completion_request.message
