@@ -1,11 +1,17 @@
 import asyncio
+import logging
 import os
 import time
+from typing import List, Optional
 
 import uvicorn
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 from poe_api_wrapper import AsyncPoeApi
 from pydantic import BaseModel
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 router = APIRouter()
@@ -35,9 +41,19 @@ MODELS = [
 ]
 
 
+class Message(BaseModel):
+    content: str
+
+
 class ChatCompletionRequest(BaseModel):
-    message: str
-    model: str
+    model: str = "claude_3_igloo"
+    messages: Optional[List[Message]] = None
+    chatId: Optional[str] = None
+    chatCode: Optional[str] = None
+    msgPrice: Optional[float] = None
+    file_path: Optional[str] = None
+    suggest_replies: Optional[bool] = None
+    timeout: Optional[int] = None
 
 
 async def create_client():
@@ -50,18 +66,57 @@ async def create_client():
 @router.post("/chat/completions")
 @router.post("/v1/chat/completions")
 async def chat_completions(request: Request, completion_request: ChatCompletionRequest):
-    print(request.headers)
-    print(request.query_params)
-    print(request.body)
+    if completion_request.messages is not None:
+        combined_message = " ".join(
+            [msg.content for msg in completion_request.messages]
+        )
+    else:
+        combined_message = ""
     res = ""
-    async for chunk in client.send_message(
-        bot=completion_request.model, message=completion_request.message
-    ):
-        res += chunk["response"]
+
+    try:
+        # Convert chatId to int if it's not None, otherwise set a default value or handle it as needed
+        chat_id_int = (
+            int(completion_request.chatId)
+            if completion_request.chatId is not None
+            else None
+        )
+        # Ensure chat_id_int is not None or provide a default/fallback value as needed
+        if chat_id_int is None:
+            raise ValueError("chatId is required and must be an integer.")
+
+        async for chunk in client.send_message(
+            bot=completion_request.model,
+            message=combined_message,
+            chatId=chat_id_int,
+            chatCode=(
+                completion_request.chatCode
+                if completion_request.chatCode is not None
+                else ""
+            ),
+            msgPrice=(
+                int(completion_request.msgPrice)
+                if completion_request.msgPrice is not None
+                else 0
+            ),
+            file_path=(
+                [completion_request.file_path] if completion_request.file_path else []
+            ),
+            suggest_replies=completion_request.suggest_replies or False,
+            timeout=completion_request.timeout or 0,
+        ):
+            res += chunk["response"]
+    except ValueError as ve:
+        logger.exception("Invalid chatId value")
+        raise HTTPException(status_code=400, detail=f"Invalid chatId value: {str(ve)}")
+    except Exception as e:
+        logger.exception("Error while processing chat completions")
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
     return {
         "id": "chatcmpl-9dG14JJJGp6LTPzKySM6AzQWZR9N2",
         "object": "chat.completion",
-        "created": time.time(),
+        "created": int(time.time()),
         "model": completion_request.model,
         "choices": [
             {
