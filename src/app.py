@@ -47,6 +47,7 @@ async def create_client():
     ).create()
 
 
+@router.post("/chat/completions")
 @router.post("/v1/chat/completions")
 async def chat_completions(request: Request, completion_request: ChatCompletionRequest):
     res = ""
@@ -72,6 +73,7 @@ async def chat_completions(request: Request, completion_request: ChatCompletionR
     }
 
 
+@router.get("/models")
 @router.get("/v1/models")
 async def get_models():
     return {"object": "list", "data": MODELS}

@@ -1,0 +1,9 @@
+version: "3"
+
+services:
+  app:
+    build: .
+    ports:
+      - "5673:8000"
+    environment:
+      - TOKENS=p-b:tH9U3Zl57BxWaa6kDqrVEQ%3D%3D,p-lat:8DvJChTAjRbZv8Owo6MPV0njSVBNdNhKoVATkv1nFLQ-1719136525-1.0.1.1-4.Bu829e0gwE8nEizYu5QiqGcNoHJq.2OPoHEwIGvOZX9qY6OyoYjgkhPsYSQPQKYFWVs
